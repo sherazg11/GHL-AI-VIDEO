@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import Image from "next/image";
 import { useUser } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,9 +49,11 @@ export function ProfileForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Profile Picture */}
           <div className="flex items-center gap-4">
-            <img
+            <Image
               src={user.imageUrl}
               alt="Profile"
+              width={64}
+              height={64}
               className="w-16 h-16 rounded-full"
             />
             <div>

@@ -59,7 +59,7 @@ export default function VideoForm() {
   return (
     <div className="max-w-2xl mx-auto">
       <Card>
-        <CardContent className="p-8">
+        <CardContent className="p-6 sm:p-8 lg:p-10">
           {generatedVideo ? (
             <div className="space-y-6">
               <div className="text-center">

@@ -33,20 +33,132 @@ async function saveBase64Image(base64Data: string, filename: string): Promise<st
   return `/uploads/${uniqueFilename}`
 }
 
-// Placeholder function for AI video generation
-// Replace with actual AI API integration (OpenAI Sora, Runway, etc.)
-async function generateVideoWithAI(imagePath: string, prompt: string): Promise<string> {
-  // This is a placeholder - replace with actual AI API call
-  // For now, we'll simulate a delay and return a mock video URL
-  await new Promise(resolve => setTimeout(resolve, 3000))
+// Runway ML API integration for video generation
+async function generateVideoWithAI(imageBase64: string, prompt: string): Promise<string> {
+  const RUNWAY_API_KEY = process.env.RUNWAY_API_KEY || 'key_f0ed6339b82188a01266836952ae8fcad8a4ba80d8d8f4b1b29cb5d554383b0860b02c22a40c2f8d70911c9812217ddc12b0df3666f497733847a8e896eb8f41'
+  const RUNWAY_API_URL = 'https://api.runwayml.com/v1'
 
-  // Mock video generation - in real implementation, this would:
-  // 1. Upload image to AI service
-  // 2. Send prompt to generate video
-  // 3. Return the generated video URL
+  try {
+    // Try different Runway ML API endpoints based on common patterns
+    // First, try the generations endpoint
+    let generationResponse = await fetch(`${RUNWAY_API_URL}/generations`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RUNWAY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gen3a_turbo',
+        prompt: prompt,
+        image: imageBase64,
+        duration: 5,
+        aspect_ratio: '16:9',
+      }),
+    })
 
-  // For demo purposes, return a placeholder video URL
-  return `https://example.com/generated-video-${Date.now()}.mp4`
+    // If that fails, try alternative endpoint structure
+    if (!generationResponse.ok && generationResponse.status === 404) {
+      generationResponse = await fetch(`${RUNWAY_API_URL}/video/generations`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RUNWAY_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: prompt,
+          image: imageBase64,
+        }),
+      })
+    }
+
+    if (!generationResponse.ok) {
+      const errorText = await generationResponse.text()
+      let errorData
+      try {
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { message: errorText || generationResponse.statusText }
+      }
+      throw new Error(errorData.error?.message || errorData.message || `Runway API error: ${generationResponse.status} ${generationResponse.statusText}`)
+    }
+
+    const generationData = await generationResponse.json()
+    
+    // Handle different response formats
+    const generationId = generationData.id || generationData.generation_id || generationData.generationId
+    
+    // If video URL is returned directly
+    if (generationData.video_url || generationData.videoUrl || generationData.url) {
+      return generationData.video_url || generationData.videoUrl || generationData.url
+    }
+    
+    if (generationData.output && (Array.isArray(generationData.output) ? generationData.output[0] : generationData.output)) {
+      const output = Array.isArray(generationData.output) ? generationData.output[0] : generationData.output
+      return typeof output === 'string' ? output : output.url || output.video_url
+    }
+    
+    // If status indicates processing, poll for completion
+    if (generationId && (generationData.status === 'pending' || generationData.status === 'processing' || generationData.status === 'queued')) {
+      let attempts = 0
+      const maxAttempts = 60 // 5 minutes max (5 second intervals)
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
+        
+        const statusResponse = await fetch(`${RUNWAY_API_URL}/generations/${generationId}`, {
+          headers: {
+            'Authorization': `Bearer ${RUNWAY_API_KEY}`,
+          },
+        })
+        
+        if (!statusResponse.ok) {
+          // Try alternative status endpoint
+          const altStatusResponse = await fetch(`${RUNWAY_API_URL}/video/generations/${generationId}`, {
+            headers: {
+              'Authorization': `Bearer ${RUNWAY_API_KEY}`,
+            },
+          })
+          
+          if (!altStatusResponse.ok) {
+            throw new Error('Failed to check generation status')
+          }
+          
+          const statusData = await altStatusResponse.json()
+          
+          if (statusData.status === 'completed' || statusData.status === 'succeeded') {
+            return statusData.video_url || statusData.videoUrl || statusData.output || statusData.url
+          }
+          
+          if (statusData.status === 'failed' || statusData.status === 'error') {
+            throw new Error(statusData.error?.message || statusData.message || 'Video generation failed')
+          }
+          
+          attempts++
+          continue
+        }
+        
+        const statusData = await statusResponse.json()
+        
+        if (statusData.status === 'completed' || statusData.status === 'succeeded') {
+          return statusData.video_url || statusData.videoUrl || statusData.output || statusData.url
+        }
+        
+        if (statusData.status === 'failed' || statusData.status === 'error') {
+          throw new Error(statusData.error?.message || statusData.message || 'Video generation failed')
+        }
+        
+        attempts++
+      }
+      
+      throw new Error('Video generation timed out after 5 minutes')
+    }
+    
+    throw new Error('No video URL returned from Runway API. Response: ' + JSON.stringify(generationData))
+    
+  } catch (error) {
+    console.error('Runway ML API error:', error)
+    throw error instanceof Error ? error : new Error('Failed to generate video with Runway ML')
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -81,7 +193,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Save image to local storage
+    // Save image to local storage for reference
     const imageUrl = await saveBase64Image(image, 'product-image.jpg')
 
     // Create video record in database
@@ -94,9 +206,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Generate video asynchronously (in production, this would be a background job)
+    // Generate video asynchronously using Runway ML API
     try {
-      const videoUrl = await generateVideoWithAI(imageUrl, prompt)
+      // Pass base64 image directly to Runway ML
+      const videoUrl = await generateVideoWithAI(image, prompt)
 
       // Update video record with completed status
       await db.video.update({
@@ -127,8 +240,11 @@ export async function POST(request: NextRequest) {
         data: { status: 'FAILED' }
       })
 
+      const errorMessage = error instanceof Error ? error.message : 'Video generation failed. Please try again.'
+      console.error('Video generation error:', error)
+
       return NextResponse.json({
-        error: 'Video generation failed. Please try again.'
+        error: errorMessage
       }, { status: 500 })
     }
 

@@ -8,24 +8,24 @@ import { CreditCard, Zap, CheckCircle } from "lucide-react";
 export default function BillingPage() {
   return (
     <DashboardLayout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+        <div className="mb-10 sm:mb-12">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
             Billing & Plans
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-base sm:text-lg">
             Manage your subscription and view usage
           </p>
         </div>
 
         {/* Usage Stats */}
-        <div className="mb-8">
+        <div className="mb-10 sm:mb-12">
           <UsageCard />
         </div>
 
         {/* Current Plan */}
-        <div className="mb-8">
+        <div className="mb-10 sm:mb-12">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -50,8 +50,8 @@ export default function BillingPage() {
 
         {/* Available Plans */}
         <div>
-          <h2 className="text-2xl font-semibold mb-6">Available Plans</h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <h2 className="text-2xl sm:text-3xl font-semibold mb-8 sm:mb-10">Available Plans</h2>
+          <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
             {/* Starter Plan */}
             <Card className="relative">
               <CardHeader>
