@@ -4,6 +4,10 @@ import { db } from '@/lib/db'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 
+// Mark this route as dynamic to prevent static generation
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 // Helper function to save base64 image
 async function saveBase64Image(base64Data: string, filename: string): Promise<string> {
   // Remove data URL prefix if present
@@ -11,7 +15,12 @@ async function saveBase64Image(base64Data: string, filename: string): Promise<st
 
   // Create uploads directory if it doesn't exist
   const uploadsDir = path.join(process.cwd(), 'uploads')
-  await mkdir(uploadsDir, { recursive: true })
+  try {
+    await mkdir(uploadsDir, { recursive: true })
+  } catch (error) {
+    // Directory might already exist, ignore error
+    console.log('Uploads directory creation:', error)
+  }
 
   // Generate unique filename
   const uniqueFilename = `${Date.now()}-${filename}`
