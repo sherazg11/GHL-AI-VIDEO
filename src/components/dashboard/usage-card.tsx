@@ -87,8 +87,7 @@ export function UsageCard() {
         {usagePercentage >= 80 && (
           <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
             <p className="text-sm text-yellow-600 dark:text-yellow-400">
-              You're approaching your monthly limit. Consider upgrading your plan for more videos.
-            </p>
+              {"You're approaching your monthly limit. Consider upgrading your plan for more videos."}            </p>
           </div>
         )}
       </CardContent>

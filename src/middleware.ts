@@ -1,12 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-// Define public routes that don't require authentication
-const isPublicRoute = createRouteMatcher([
-  '/',           // Landing page
-  '/sign-in',    // Sign in page
-  '/sign-up',    // Sign up page
-]);
-
 // Define protected routes that require authentication
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',  // Dashboard and all sub-routes
@@ -16,15 +9,16 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
+  const { userId } = await auth();
+  
   // Protect routes that require authentication
   if (isProtectedRoute(req)) {
     await auth.protect();
   }
 
-  // Redirect authenticated users away from auth pages
-  if (isPublicRoute(req) && (await auth()).userId) {
-    // If user is signed in and trying to access public routes,
-    // redirect to dashboard
+  // Only redirect authenticated users away from sign-in/sign-up pages
+  // Allow them to access the landing page
+  if (userId && (req.nextUrl.pathname.startsWith('/sign-in') || req.nextUrl.pathname.startsWith('/sign-up'))) {
     const url = new URL('/dashboard', req.url);
     return Response.redirect(url);
   }
