@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String?
+  firstName   String?
+  lastName    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // User limits and usage
+  videoLimit    Int     @default(10) // Monthly video generation limit
+  videosUsed    Int     @default(0)  // Videos generated this month
+  lastResetDate DateTime @default(now())
+
+  // Relations
+  videos Video[]
+
+  @@map("users")
+}
+
+model Video {
+  id          String   @id @default(cuid())
+  title       String?
+  prompt      String
+  imageUrl    String?  // Stored image URL/path
+  videoUrl    String?  // Generated video URL
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("videos")
+}
